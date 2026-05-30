@@ -185,7 +185,8 @@ class _FormField extends StatelessWidget {
   final String label, hint;
   final TextEditingController controller;
   final bool obscure;
-  const _FormField({required this.label, required this.controller, required this.hint, this.obscure = false});
+  final int maxLines;
+  const _FormField({required this.label, required this.controller, required this.hint, this.obscure = false, this.maxLines = 1});
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -194,6 +195,7 @@ class _FormField extends StatelessWidget {
       TextField(
         controller: controller,
         obscureText: obscure,
+        maxLines: obscure ? 1 : maxLines,
         style: const TextStyle(fontSize: 14),
         decoration: InputDecoration(
           hintText: hint,
