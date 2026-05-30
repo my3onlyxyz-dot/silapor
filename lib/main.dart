@@ -643,7 +643,7 @@ class _LaporanPageState extends State<LaporanPage> {
         ),
         const SizedBox(width: 8),
         DropdownButton<String>(
-          value: filterStatus.isEmpty ? null,
+          value: filterStatus.isEmpty ? null : filterStatus,
           hint: const Text('Semua', style: TextStyle(fontSize: 13)),
           items: ['', 'Menunggu', 'Diproses', 'Selesai', 'Darurat'].map((s) => DropdownMenuItem(value: s, child: Text(s.isEmpty ? 'Semua' : s, style: const TextStyle(fontSize: 13)))).toList(),
           onChanged: (v) => setState(() => filterStatus = v ?? ''),
