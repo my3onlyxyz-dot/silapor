@@ -435,11 +435,31 @@ class _AppPageState extends State<AppPage> {
               decoration: BoxDecoration(color: kPrimary, borderRadius: BorderRadius.circular(12), boxShadow: [const BoxShadow(color: Colors.black26, blurRadius: 16)]),
               child: Text(toastMsg, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)))),
       ]),
-      bottomNavigationBar: isWide ? null : NavigationBar(
-        selectedIndex: selectedNav, onDestinationSelected: (i) => setState(() => selectedNav = i),
-        backgroundColor: Colors.white, indicatorColor: kPrimary.withOpacity(0.15),
-        destinations: List.generate(navLabels.length, (i) => NavigationDestination(
-          icon: Text(navIcons[i], style: const TextStyle(fontSize: 20)), label: navLabels[i])),
+      bottomNavigationBar: isWide ? null : ValueListenableBuilder<ThemeMode>(
+        valueListenable: themeNotifier,
+        builder: (_, mode, __) {
+          final isDark = mode == ThemeMode.dark;
+          final navBg = isDark ? const Color(0xFF1a2535) : Colors.white;
+          final navBorder = isDark ? const Color(0xFF2a3a50) : kBorder;
+          return Container(
+            decoration: BoxDecoration(color: navBg, border: Border(top: BorderSide(color: navBorder))),
+            child: NavigationBar(
+              selectedIndex: selectedNav,
+              onDestinationSelected: (i) => setState(() => selectedNav = i),
+              backgroundColor: Colors.transparent,
+              surfaceTintColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              elevation: 0,
+              indicatorColor: kPrimary.withOpacity(isDark ? 0.25 : 0.12),
+              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+              destinations: List.generate(navLabels.length, (i) => NavigationDestination(
+                icon: Text(navIcons[i], style: TextStyle(fontSize: 20, color: isDark ? const Color(0xFF8a9bb0) : kTextMuted)),
+                selectedIcon: Text(navIcons[i], style: const TextStyle(fontSize: 20)),
+                label: navLabels[i],
+              )),
+            ),
+          );
+        },
       ),
     );
   }
@@ -557,19 +577,44 @@ class _Topbar extends StatelessWidget {
   const _Topbar({required this.title, required this.laporanData, required this.isAdmin});
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final darurat = laporanData.where((l) => l.status == 'Darurat').length;
-    return Container(height: 64, padding: const EdgeInsets.symmetric(horizontal: 24),
-      decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: kBorder))),
+    final bg = isDark ? const Color(0xFF1a2535) : Colors.white;
+    final border = isDark ? const Color(0xFF2a3a50) : kBorder;
+    final textC = isDark ? Colors.white : kText;
+    final iconBg = isDark ? const Color(0xFF243044) : kBg;
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(color: bg, border: Border(bottom: BorderSide(color: border))),
       child: Row(children: [
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: kText)),
+        Text(title, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: textC)),
         const Spacer(),
+        // DARK MODE QUICK TOGGLE
+        ValueListenableBuilder<ThemeMode>(
+          valueListenable: themeNotifier,
+          builder: (_, mode, __) {
+            final dark = mode == ThemeMode.dark;
+            return GestureDetector(
+              onTap: () => themeNotifier.value = dark ? ThemeMode.light : ThemeMode.dark,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 38, height: 38, margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: border)),
+                child: Center(child: Text(dark ? '☀️' : '🌙', style: const TextStyle(fontSize: 16))),
+              ),
+            );
+          },
+        ),
         if (isAdmin) Stack(children: [
           Container(width: 38, height: 38,
-            decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: kBorder)),
+            decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: border)),
             child: const Center(child: Text('🔔', style: TextStyle(fontSize: 16)))),
-          if (darurat > 0) Positioned(top: 6, right: 6, child: Container(width: 8, height: 8, decoration: const BoxDecoration(color: kDanger, shape: BoxShape.circle))),
+          if (darurat > 0) Positioned(top: 6, right: 6,
+            child: Container(width: 8, height: 8, decoration: const BoxDecoration(color: kDanger, shape: BoxShape.circle))),
         ]),
-      ]));
+      ]),
+    );
   }
 }
 
@@ -646,43 +691,222 @@ class AdminDashboardPage extends StatelessWidget {
   final List<Laporan> laporanData;
   final String username;
   const AdminDashboardPage({super.key, required this.laporanData, required this.username});
+
+  void _showStatDetail(BuildContext context, String label, String icon, Color color, List<Laporan> filtered) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1e2d3d) : Colors.white;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.55,
+        minChildSize: 0.3,
+        maxChildSize: 0.9,
+        builder: (_, ctrl) => Container(
+          decoration: BoxDecoration(color: cardBg, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+          child: Column(children: [
+            const SizedBox(height: 10),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Row(children: [
+                Container(width: 44, height: 44, decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                  child: Center(child: Text(icon, style: const TextStyle(fontSize: 20)))),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                  Text('${filtered.length} laporan', style: const TextStyle(fontSize: 12, color: kTextMuted)),
+                ])),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
+                  child: Text('${filtered.length}', style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 15))),
+              ]),
+            ),
+            const Divider(height: 1),
+            Expanded(child: filtered.isEmpty
+              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Text('📭', style: TextStyle(fontSize: 40)),
+                  const SizedBox(height: 12),
+                  Text('Tidak ada data untuk "$label"', style: const TextStyle(color: kTextMuted, fontSize: 13)),
+                ]))
+              : ListView.separated(
+                  controller: ctrl,
+                  padding: const EdgeInsets.all(16),
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemCount: filtered.length,
+                  itemBuilder: (_, i) {
+                    final l = filtered[i];
+                    final statusColors = {'Menunggu': kWarning, 'Diproses': kInfo, 'Selesai': kSuccess, 'Darurat': kDanger};
+                    final statusIcons = {'Menunggu': '⏳', 'Diproses': '🔄', 'Selesai': '✅', 'Darurat': '🚨'};
+                    final sc = statusColors[l.status] ?? kTextMuted;
+                    return Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF243044) : kBg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: sc.withOpacity(0.2)),
+                      ),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Row(children: [
+                          Expanded(child: Text(l.judul, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13))),
+                          Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(color: sc.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                            child: Text('${statusIcons[l.status]} ${l.status}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: sc))),
+                        ]),
+                        const SizedBox(height: 6),
+                        Row(children: [
+                          Text('👤 ${l.pelapor}', style: const TextStyle(fontSize: 11, color: kTextMuted)),
+                          const SizedBox(width: 10),
+                          Text('📍 ${l.lokasi}', style: const TextStyle(fontSize: 11, color: kTextMuted)),
+                          const Spacer(),
+                          Text('📅 ${l.tanggal}', style: const TextStyle(fontSize: 10, color: kTextMuted)),
+                        ]),
+                      ]),
+                    );
+                  }),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1e2d3d) : Colors.white;
+    final border = isDark ? const Color(0xFF2a3a50) : kBorder;
+    final mutedC = isDark ? const Color(0xFF8a9bb0) : kTextMuted;
+
     final total = laporanData.length;
-    final menunggu = laporanData.where((l) => l.status == 'Menunggu').length;
-    final selesai = laporanData.where((l) => l.status == 'Selesai').length;
-    final darurat = laporanData.where((l) => l.status == 'Darurat').length;
+    final menunggu = laporanData.where((l) => l.status == 'Menunggu').toList();
+    final selesai = laporanData.where((l) => l.status == 'Selesai').toList();
+    final darurat = laporanData.where((l) => l.status == 'Darurat').toList();
+    final diproses = laporanData.where((l) => l.status == 'Diproses').toList();
     final totalUser = AppDB.users.where((u) => u.role == 'user').length;
+
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      // JAM & TANGGAL
+      // CLOCK
       const _ClockWidget(),
-      const SizedBox(height: 20),
-      // SAMBUTAN
-      Row(children: [
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Selamat datang, $username 👑', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-          const Text('Panel Admin — Ringkasan laporan kecamatan.', style: TextStyle(fontSize: 13, color: kTextMuted)),
-        ])),
-      ]),
-      const SizedBox(height: 16),
-      GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 2.2, children: [
-        _StatCard(icon: '📋', iconBg: const Color(0xFFe8f0fe), value: '$total', label: 'Total Laporan'),
-        _StatCard(icon: '⏳', iconBg: const Color(0xFFfef9e7), value: '$menunggu', label: 'Menunggu'),
-        _StatCard(icon: '✅', iconBg: const Color(0xFFe6f9f0), value: '$selesai', label: 'Selesai'),
-        _StatCard(icon: '🚨', iconBg: const Color(0xFFfdecea), value: '$darurat', label: 'Darurat'),
-        _StatCard(icon: '👥', iconBg: const Color(0xFFf3e8ff), value: '$totalUser', label: 'Pengguna'),
-      ]),
-      const SizedBox(height: 24),
+      const SizedBox(height: 18),
+
+      // GREETING ROW
       Container(
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: kBorder)),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: cardBg, borderRadius: BorderRadius.circular(16), border: Border.all(color: border),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+        child: Row(children: [
+          Container(width: 46, height: 46,
+            decoration: BoxDecoration(gradient: const LinearGradient(colors: [kAccent, Color(0xFFd4890e)]), borderRadius: BorderRadius.circular(13)),
+            child: const Center(child: Text('👑', style: TextStyle(fontSize: 22)))),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Selamat datang, $username', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+            Text('Panel Admin · ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}', style: TextStyle(fontSize: 11, color: mutedC)),
+          ])),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(color: kSuccess.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
+            child: const Text('● Online', style: TextStyle(color: kSuccess, fontSize: 11, fontWeight: FontWeight.w700))),
+        ]),
+      ),
+      const SizedBox(height: 16),
+
+      // STAT CARDS — 2x2 grid + 1 full width
+      Row(children: [
+        Expanded(child: _TappableStatCard(
+          icon: '📋', iconBg: const Color(0xFFe8f0fe), iconColor: kInfo,
+          value: '$total', label: 'Total Laporan', sublabel: 'Semua laporan',
+          onTap: () => _showStatDetail(context, 'Total Laporan', '📋', kInfo, laporanData),
+        )),
+        const SizedBox(width: 10),
+        Expanded(child: _TappableStatCard(
+          icon: '⏳', iconBg: const Color(0xFFfef9e7), iconColor: kWarning,
+          value: '${menunggu.length}', label: 'Menunggu', sublabel: 'Perlu ditangani',
+          onTap: () => _showStatDetail(context, 'Menunggu', '⏳', kWarning, menunggu),
+        )),
+      ]),
+      const SizedBox(height: 10),
+      Row(children: [
+        Expanded(child: _TappableStatCard(
+          icon: '🔄', iconBg: const Color(0xFFe8f4fd), iconColor: kPrimaryLight,
+          value: '${diproses.length}', label: 'Diproses', sublabel: 'Sedang ditangani',
+          onTap: () => _showStatDetail(context, 'Diproses', '🔄', kPrimaryLight, diproses),
+        )),
+        const SizedBox(width: 10),
+        Expanded(child: _TappableStatCard(
+          icon: '✅', iconBg: const Color(0xFFe6f9f0), iconColor: kSuccess,
+          value: '${selesai.length}', label: 'Selesai', sublabel: 'Berhasil diselesaikan',
+          onTap: () => _showStatDetail(context, 'Selesai', '✅', kSuccess, selesai),
+        )),
+      ]),
+      const SizedBox(height: 10),
+      Row(children: [
+        Expanded(child: _TappableStatCard(
+          icon: '🚨', iconBg: const Color(0xFFfdecea), iconColor: kDanger,
+          value: '${darurat.length}', label: 'Darurat', sublabel: 'Prioritas tinggi',
+          onTap: () => _showStatDetail(context, 'Darurat', '🚨', kDanger, darurat),
+        )),
+        const SizedBox(width: 10),
+        Expanded(child: _TappableStatCard(
+          icon: '👥', iconBg: const Color(0xFFf3e8ff), iconColor: const Color(0xFF7c3aed),
+          value: '$totalUser', label: 'Pengguna', sublabel: 'Terdaftar',
+          onTap: () {},
+        )),
+      ]),
+      const SizedBox(height: 20),
+
+      // QUICK ACTIONS
+      Text('⚡ Aksi Cepat', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: mutedC)),
+      const SizedBox(height: 10),
+      Row(children: [
+        _QuickAction(icon: '📋', label: 'Semua\nLaporan', color: kInfo),
+        const SizedBox(width: 8),
+        _QuickAction(icon: '🚨', label: 'Laporan\nDarurat', color: kDanger),
+        const SizedBox(width: 8),
+        _QuickAction(icon: '👥', label: 'Pengguna', color: const Color(0xFF7c3aed)),
+        const SizedBox(width: 8),
+        _QuickAction(icon: '📈', label: 'Statistik', color: kSuccess),
+      ]),
+      const SizedBox(height: 20),
+
+      // LAPORAN TERBARU
+      Container(
+        decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(16), border: Border.all(color: border),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))]),
         child: Column(children: [
-          const Padding(padding: EdgeInsets.all(20), child: Row(children: [Text('📋 Laporan Terbaru', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700))])),
-          const Divider(height: 1, color: kBorder),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+            child: Row(children: [
+              const Text('📋', style: TextStyle(fontSize: 16)),
+              const SizedBox(width: 8),
+              const Text('Laporan Terbaru', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+              const Spacer(),
+              if (laporanData.isNotEmpty)
+                Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                  decoration: BoxDecoration(color: kPrimary.withOpacity(0.08), borderRadius: BorderRadius.circular(20)),
+                  child: Text('${laporanData.length} total', style: const TextStyle(color: kPrimary, fontSize: 11, fontWeight: FontWeight.w700))),
+            ]),
+          ),
+          Divider(height: 1, color: border),
           laporanData.isEmpty
-            ? const Padding(padding: EdgeInsets.all(24), child: Text('Belum ada laporan masuk.', style: TextStyle(color: kTextMuted)))
+            ? Padding(
+                padding: const EdgeInsets.symmetric(vertical: 36),
+                child: Column(children: [
+                  Container(width: 64, height: 64, decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(20)),
+                    child: const Center(child: Text('📭', style: TextStyle(fontSize: 30)))),
+                  const SizedBox(height: 14),
+                  const Text('Belum ada laporan masuk', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  const SizedBox(height: 4),
+                  Text('Laporan dari masyarakat akan muncul di sini', style: TextStyle(fontSize: 12, color: mutedC)),
+                ]),
+              )
             : Column(children: laporanData.take(5).map((l) => _LaporanTile(l: l)).toList()),
         ]),
       ),
+      const SizedBox(height: 8),
     ]);
   }
 }
@@ -692,36 +916,173 @@ class UserDashboardPage extends StatelessWidget {
   final List<Laporan> laporanData;
   final String username, myUsername;
   const UserDashboardPage({super.key, required this.laporanData, required this.username, required this.myUsername});
+
+  void _showStatDetail(BuildContext context, String label, String icon, Color color, List<Laporan> filtered) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1e2d3d) : Colors.white;
+    showModalBottomSheet(
+      context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.55, minChildSize: 0.3, maxChildSize: 0.9,
+        builder: (_, ctrl) => Container(
+          decoration: BoxDecoration(color: cardBg, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+          child: Column(children: [
+            const SizedBox(height: 10),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Row(children: [
+                Container(width: 44, height: 44, decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                  child: Center(child: Text(icon, style: const TextStyle(fontSize: 20)))),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                  Text('${filtered.length} laporan saya', style: const TextStyle(fontSize: 12, color: kTextMuted)),
+                ])),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
+                  child: Text('${filtered.length}', style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 15))),
+              ]),
+            ),
+            const Divider(height: 1),
+            Expanded(child: filtered.isEmpty
+              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Text('📭', style: TextStyle(fontSize: 40)), const SizedBox(height: 12),
+                  Text('Tidak ada laporan "$label"', style: const TextStyle(color: kTextMuted, fontSize: 13)),
+                ]))
+              : ListView.separated(
+                  controller: ctrl, padding: const EdgeInsets.all(16),
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemCount: filtered.length,
+                  itemBuilder: (_, i) {
+                    final l = filtered[i];
+                    final sc = {'Menunggu': kWarning, 'Diproses': kInfo, 'Selesai': kSuccess, 'Darurat': kDanger}[l.status] ?? kTextMuted;
+                    final si = {'Menunggu': '⏳', 'Diproses': '🔄', 'Selesai': '✅', 'Darurat': '🚨'}[l.status] ?? '';
+                    return Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(color: isDark ? const Color(0xFF243044) : kBg, borderRadius: BorderRadius.circular(12), border: Border.all(color: sc.withOpacity(0.2))),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Row(children: [
+                          Expanded(child: Text(l.judul, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13))),
+                          Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(color: sc.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                            child: Text('$si ${l.status}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: sc))),
+                        ]),
+                        const SizedBox(height: 6),
+                        Text('📍 ${l.lokasi} · 📅 ${l.tanggal}', style: const TextStyle(fontSize: 11, color: kTextMuted)),
+                      ]),
+                    );
+                  }),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1e2d3d) : Colors.white;
+    final border = isDark ? const Color(0xFF2a3a50) : kBorder;
+    final mutedC = isDark ? const Color(0xFF8a9bb0) : kTextMuted;
+
     final my = laporanData.where((l) => l.pelapor == myUsername).toList();
-    final selesai = my.where((l) => l.status == 'Selesai').length;
-    final diproses = my.where((l) => l.status == 'Diproses').length;
-    final menunggu = my.where((l) => l.status == 'Menunggu').length;
+    final selesai = my.where((l) => l.status == 'Selesai').toList();
+    final diproses = my.where((l) => l.status == 'Diproses').toList();
+    final menunggu = my.where((l) => l.status == 'Menunggu').toList();
+
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      // JAM & TANGGAL
       const _ClockWidget(),
-      const SizedBox(height: 20),
-      Text('Halo, $username 👋', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-      const Text('Pantau status laporan yang kamu kirimkan.', style: TextStyle(fontSize: 13, color: kTextMuted)),
-      const SizedBox(height: 16),
-      GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 2.2, children: [
-        _StatCard(icon: '📋', iconBg: const Color(0xFFe8f0fe), value: '${my.length}', label: 'Laporan Saya'),
-        _StatCard(icon: '⏳', iconBg: const Color(0xFFfef9e7), value: '$menunggu', label: 'Menunggu'),
-        _StatCard(icon: '🔄', iconBg: const Color(0xFFe8f4fd), value: '$diproses', label: 'Diproses'),
-        _StatCard(icon: '✅', iconBg: const Color(0xFFe6f9f0), value: '$selesai', label: 'Selesai'),
-      ]),
-      const SizedBox(height: 24),
+      const SizedBox(height: 18),
+
+      // GREETING
       Container(
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: kBorder)),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(16), border: Border.all(color: border),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))]),
+        child: Row(children: [
+          Container(width: 46, height: 46,
+            decoration: BoxDecoration(gradient: const LinearGradient(colors: [kPrimary, kPrimaryLight]), borderRadius: BorderRadius.circular(13)),
+            child: Center(child: Text(username.isNotEmpty ? username[0].toUpperCase() : 'U',
+              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)))),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Halo, $username 👋', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+            Text('${my.length} laporan dikirim', style: TextStyle(fontSize: 11, color: mutedC)),
+          ])),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(color: kSuccess.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
+            child: const Text('● Aktif', style: TextStyle(color: kSuccess, fontSize: 11, fontWeight: FontWeight.w700))),
+        ]),
+      ),
+      const SizedBox(height: 16),
+
+      // STAT CARDS
+      Row(children: [
+        Expanded(child: _TappableStatCard(
+          icon: '📋', iconBg: const Color(0xFFe8f0fe), iconColor: kInfo,
+          value: '${my.length}', label: 'Laporan Saya', sublabel: 'Total dikirim',
+          onTap: () => _showStatDetail(context, 'Semua Laporan', '📋', kInfo, my),
+        )),
+        const SizedBox(width: 10),
+        Expanded(child: _TappableStatCard(
+          icon: '⏳', iconBg: const Color(0xFFfef9e7), iconColor: kWarning,
+          value: '${menunggu.length}', label: 'Menunggu', sublabel: 'Belum ditangani',
+          onTap: () => _showStatDetail(context, 'Menunggu', '⏳', kWarning, menunggu),
+        )),
+      ]),
+      const SizedBox(height: 10),
+      Row(children: [
+        Expanded(child: _TappableStatCard(
+          icon: '🔄', iconBg: const Color(0xFFe8f4fd), iconColor: kPrimaryLight,
+          value: '${diproses.length}', label: 'Diproses', sublabel: 'Sedang ditangani',
+          onTap: () => _showStatDetail(context, 'Diproses', '🔄', kPrimaryLight, diproses),
+        )),
+        const SizedBox(width: 10),
+        Expanded(child: _TappableStatCard(
+          icon: '✅', iconBg: const Color(0xFFe6f9f0), iconColor: kSuccess,
+          value: '${selesai.length}', label: 'Selesai', sublabel: 'Berhasil diselesaikan',
+          onTap: () => _showStatDetail(context, 'Selesai', '✅', kSuccess, selesai),
+        )),
+      ]),
+      const SizedBox(height: 20),
+
+      // LAPORAN TERBARU
+      Container(
+        decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(16), border: Border.all(color: border),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))]),
         child: Column(children: [
-          const Padding(padding: EdgeInsets.all(20), child: Row(children: [Text('📋 Laporan Terbaru Saya', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700))])),
-          const Divider(height: 1, color: kBorder),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+            child: Row(children: [
+              const Text('📋', style: TextStyle(fontSize: 16)),
+              const SizedBox(width: 8),
+              const Text('Laporan Terbaru Saya', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+              const Spacer(),
+              if (my.isNotEmpty)
+                Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                  decoration: BoxDecoration(color: kPrimary.withOpacity(0.08), borderRadius: BorderRadius.circular(20)),
+                  child: Text('${my.length} total', style: const TextStyle(color: kPrimary, fontSize: 11, fontWeight: FontWeight.w700))),
+            ]),
+          ),
+          Divider(height: 1, color: border),
           my.isEmpty
-            ? const Padding(padding: EdgeInsets.all(24), child: Text('Belum ada laporan. Buat laporan pertamamu!', style: TextStyle(color: kTextMuted)))
+            ? Padding(
+                padding: const EdgeInsets.symmetric(vertical: 36),
+                child: Column(children: [
+                  Container(width: 64, height: 64, decoration: BoxDecoration(color: kBg, borderRadius: BorderRadius.circular(20)),
+                    child: const Center(child: Text('✏️', style: TextStyle(fontSize: 30)))),
+                  const SizedBox(height: 14),
+                  const Text('Belum ada laporan', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  const SizedBox(height: 4),
+                  Text('Gunakan "Buat Laporan" untuk mulai melapor', style: TextStyle(fontSize: 12, color: mutedC)),
+                ]),
+              )
             : Column(children: my.take(5).map((l) => _LaporanTile(l: l)).toList()),
         ]),
       ),
+      const SizedBox(height: 8),
     ]);
   }
 }
@@ -1488,22 +1849,94 @@ class _SettingField extends StatelessWidget {
 }
 
 // ===== HELPERS =====
-class _StatCard extends StatelessWidget {
-  final String icon, value, label;
-  final Color iconBg;
-  const _StatCard({required this.icon, required this.iconBg, required this.value, required this.label});
+class _TappableStatCard extends StatefulWidget {
+  final String icon, value, label, sublabel;
+  final Color iconBg, iconColor;
+  final VoidCallback onTap;
+  const _TappableStatCard({required this.icon, required this.iconBg, required this.iconColor,
+    required this.value, required this.label, required this.sublabel, required this.onTap});
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: kBorder)),
-    child: Row(children: [
-      Container(width: 48, height: 48, decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(14)), child: Center(child: Text(icon, style: const TextStyle(fontSize: 20)))),
-      const SizedBox(width: 12),
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: kText)),
-        Text(label, style: const TextStyle(fontSize: 11, color: kTextMuted, fontWeight: FontWeight.w500)),
-      ]),
-    ]));
+  State<_TappableStatCard> createState() => _TappableStatCardState();
+}
+
+class _TappableStatCardState extends State<_TappableStatCard> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 100));
+    _scale = Tween<double>(begin: 1.0, end: 0.95).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1e2d3d) : Colors.white;
+    final border = isDark ? const Color(0xFF2a3a50) : kBorder;
+    final mutedC = isDark ? const Color(0xFF8a9bb0) : kTextMuted;
+
+    return GestureDetector(
+      onTapDown: (_) => _ctrl.forward(),
+      onTapUp: (_) { _ctrl.reverse(); widget.onTap(); },
+      onTapCancel: () => _ctrl.reverse(),
+      child: ScaleTransition(
+        scale: _scale,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: cardBg, borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: border),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Container(width: 40, height: 40,
+                decoration: BoxDecoration(color: widget.iconBg, borderRadius: BorderRadius.circular(11)),
+                child: Center(child: Text(widget.icon, style: const TextStyle(fontSize: 18)))),
+              const Spacer(),
+              Container(width: 22, height: 22,
+                decoration: BoxDecoration(color: widget.iconColor.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                child: Icon(Icons.chevron_right_rounded, size: 16, color: widget.iconColor)),
+            ]),
+            const SizedBox(height: 12),
+            Text(widget.value, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: widget.iconColor, height: 1)),
+            const SizedBox(height: 2),
+            Text(widget.label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+            Text(widget.sublabel, style: TextStyle(fontSize: 10, color: mutedC)),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickAction extends StatelessWidget {
+  final String icon, label;
+  final Color color;
+  const _QuickAction({required this.icon, required this.label, required this.color});
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1e2d3d) : Colors.white;
+    final border = isDark ? const Color(0xFF2a3a50) : kBorder;
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(12), border: Border.all(color: border)),
+        child: Column(children: [
+          Container(width: 36, height: 36, decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            child: Center(child: Text(icon, style: const TextStyle(fontSize: 17)))),
+          const SizedBox(height: 6),
+          Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
+        ]),
+      ),
+    );
+  }
 }
 
 class _LaporanTile extends StatelessWidget {
@@ -1511,19 +1944,27 @@ class _LaporanTile extends StatelessWidget {
   const _LaporanTile({required this.l});
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final border = isDark ? const Color(0xFF2a3a50) : kBorder;
     final colors = {'Menunggu': kWarning, 'Diproses': kInfo, 'Selesai': kSuccess, 'Darurat': kDanger};
     final icons = {'Menunggu': '⏳', 'Diproses': '🔄', 'Selesai': '✅', 'Darurat': '🚨'};
+    final sc = colors[l.status] ?? kTextMuted;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: kBorder))),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: border))),
       child: Row(children: [
+        Container(width: 36, height: 36,
+          decoration: BoxDecoration(color: sc.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+          child: Center(child: Text(icons[l.status] ?? '', style: const TextStyle(fontSize: 16)))),
+        const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(l.judul, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-          Text(l.pelapor, style: const TextStyle(fontSize: 11, color: kTextMuted)),
+          Text(l.judul, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text('${l.pelapor} · ${l.tanggal}', style: TextStyle(fontSize: 10, color: isDark ? const Color(0xFF8a9bb0) : kTextMuted)),
         ])),
-        Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(color: (colors[l.status] ?? kTextMuted).withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-          child: Text('${icons[l.status]} ${l.status}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors[l.status] ?? kTextMuted))),
+        const SizedBox(width: 8),
+        Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+          decoration: BoxDecoration(color: sc.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+          child: Text(l.status, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: sc))),
       ]));
   }
 }
