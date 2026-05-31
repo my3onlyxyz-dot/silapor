@@ -20,14 +20,31 @@ class UserAccount {
 
 // ===== DATABASE =====
 class AppDB {
-  static final List<UserAccount> users = [
+  static final List<UserAccount> _users = [
     UserAccount(nama: 'Administrator', username: 'admin', password: 'admin123', nik: '0000000000000000', noHp: '', role: 'admin'),
   ];
-  static UserAccount? login(String u, String p) {
-    try { return users.firstWhere((x) => x.username == u && x.password == p); } catch (_) { return null; }
+  static final List<Laporan> _laporan = [];
+
+  // ValueNotifiers — semua widget yang listen akan rebuild otomatis
+  static final laporanNotifier = ValueNotifier<int>(0);
+  static final userNotifier    = ValueNotifier<int>(0);
+
+  static List<UserAccount> get users  => _users;
+  static List<Laporan>     get laporan => _laporan;
+
+  // Mutasi laporan
+  static void addLaporan(Laporan l) {
+    _laporan.insert(0, l);
+    laporanNotifier.value++;
   }
-  static bool usernameExists(String u) => users.any((x) => x.username == u);
-  static void register(UserAccount a) => users.add(a);
+  static void updateLaporan() => laporanNotifier.value++;
+
+  // Mutasi user
+  static UserAccount? login(String u, String p) {
+    try { return _users.firstWhere((x) => x.username == u && x.password == p); } catch (_) { return null; }
+  }
+  static bool usernameExists(String u) => _users.any((x) => x.username == u);
+  static void register(UserAccount a) { _users.add(a); userNotifier.value++; }
 }
 
 // ===== WARNA =====
@@ -319,10 +336,10 @@ class AppPage extends StatefulWidget {
 class _AppPageState extends State<AppPage> {
   int selectedNav = 0;
   String toastMsg = '';
-  List<Laporan> laporanData = [];
   bool showContactMenu = false;
 
   bool get isAdmin => widget.account.role == 'admin';
+  List<Laporan> get laporanData => AppDB.laporan;
 
   List<String> get navLabels => isAdmin
     ? ['Dashboard', 'Laporan', 'Berkas', 'Statistik', 'Pengguna', 'Pengaturan']
@@ -341,26 +358,36 @@ class _AppPageState extends State<AppPage> {
 
   @override
   Widget build(BuildContext context) {
+    return ValueListenableBuilder<int>(
+      valueListenable: AppDB.laporanNotifier,
+      builder: (context, _lVal, __) => ValueListenableBuilder<int>(
+        valueListenable: AppDB.userNotifier,
+        builder: (context, _uVal, __) => _buildScaffold(context),
+      ),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width > 700;
     Widget page;
     if (isAdmin) {
       switch (selectedNav) {
-        case 0: page = AdminDashboardPage(laporanData: laporanData, username: widget.account.nama); break;
-        case 1: page = AdminLaporanPage(laporanData: laporanData, onUpdate: () => setState(() {}), showToast: showToast); break;
+        case 0: page = AdminDashboardPage(username: widget.account.nama); break;
+        case 1: page = AdminLaporanPage(showToast: showToast); break;
         case 2: page = BerkasPage(showToast: showToast); break;
-        case 3: page = StatistikPage(laporanData: laporanData); break;
+        case 3: page = StatistikPage(); break;
         case 4: page = ManajemenPenggunaPage(showToast: showToast); break;
         case 5: page = PengaturanPage(showToast: showToast, onLogout: doLogout); break;
-        default: page = AdminDashboardPage(laporanData: laporanData, username: widget.account.nama);
+        default: page = AdminDashboardPage(username: widget.account.nama);
       }
     } else {
       switch (selectedNav) {
-        case 0: page = UserDashboardPage(laporanData: laporanData, username: widget.account.nama, myUsername: widget.account.username); break;
-        case 1: page = UserLaporanPage(laporanData: laporanData, username: widget.account.username, onUpdate: () => setState(() {}), showToast: showToast); break;
-        case 2: page = BuatLaporanPage(laporanData: laporanData, username: widget.account.username, onUpdate: () { setState(() {}); showToast('✅ Laporan berhasil dikirim!'); setState(() => selectedNav = 1); }); break;
-        case 3: page = UserStatistikPage(laporanData: laporanData, username: widget.account.username); break;
+        case 0: page = UserDashboardPage(username: widget.account.nama, myUsername: widget.account.username); break;
+        case 1: page = UserLaporanPage(username: widget.account.username, showToast: showToast); break;
+        case 2: page = BuatLaporanPage(username: widget.account.username, onUpdate: () { showToast('✅ Laporan berhasil dikirim!'); setState(() => selectedNav = 1); }); break;
+        case 3: page = UserStatistikPage(username: widget.account.username); break;
         case 4: page = UserPengaturanPage(account: widget.account, showToast: showToast, onLogout: doLogout); break;
-        default: page = UserDashboardPage(laporanData: laporanData, username: widget.account.nama, myUsername: widget.account.username);
+        default: page = UserDashboardPage(username: widget.account.nama, myUsername: widget.account.username);
       }
     }
 
@@ -369,14 +396,14 @@ class _AppPageState extends State<AppPage> {
       body: Stack(children: [
         isWide
           ? Row(children: [
-              _Sidebar(isAdmin: isAdmin, account: widget.account, selectedNav: selectedNav, navLabels: navLabels, navIcons: navIcons, onNav: (i) => setState(() => selectedNav = i), onLogout: doLogout, laporanData: laporanData),
+              _Sidebar(isAdmin: isAdmin, account: widget.account, selectedNav: selectedNav, navLabels: navLabels, navIcons: navIcons, onNav: (i) => setState(() => selectedNav = i), onLogout: doLogout),
               Expanded(child: Column(children: [
-                _Topbar(title: navLabels[selectedNav], laporanData: laporanData, isAdmin: isAdmin),
+                _Topbar(title: navLabels[selectedNav], isAdmin: isAdmin),
                 Expanded(child: SingleChildScrollView(padding: const EdgeInsets.all(24), child: page)),
               ])),
             ])
           : Column(children: [
-              _Topbar(title: navLabels[selectedNav], laporanData: laporanData, isAdmin: isAdmin),
+              _Topbar(title: navLabels[selectedNav], isAdmin: isAdmin),
               Expanded(child: SingleChildScrollView(padding: const EdgeInsets.all(16), child: page)),
             ]),
 
@@ -504,12 +531,11 @@ class _Sidebar extends StatelessWidget {
   final List<String> navLabels, navIcons;
   final Function(int) onNav;
   final VoidCallback onLogout;
-  final List<Laporan> laporanData;
-  const _Sidebar({required this.isAdmin, required this.account, required this.selectedNav, required this.navLabels, required this.navIcons, required this.onNav, required this.onLogout, required this.laporanData});
+  const _Sidebar({required this.isAdmin, required this.account, required this.selectedNav, required this.navLabels, required this.navIcons, required this.onNav, required this.onLogout});
 
   @override
   Widget build(BuildContext context) {
-    final menunggu = laporanData.where((l) => l.status == 'Menunggu').length;
+    final menunggu = AppDB.laporan.where((l) => l.status == 'Menunggu').length;
     final avatarLetter = account.nama.isNotEmpty ? account.nama[0].toUpperCase() : 'U';
     return Container(
       width: 240,
@@ -573,13 +599,12 @@ class _Sidebar extends StatelessWidget {
 // ===== TOPBAR =====
 class _Topbar extends StatelessWidget {
   final String title;
-  final List<Laporan> laporanData;
   final bool isAdmin;
-  const _Topbar({required this.title, required this.laporanData, required this.isAdmin});
+  const _Topbar({required this.title, required this.isAdmin});
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final darurat = laporanData.where((l) => l.status == 'Darurat').length;
+    final darurat = AppDB.laporan.where((l) => l.status == 'Darurat').length;
     final bg = isDark ? const Color(0xFF1a2535) : Colors.white;
     final border = isDark ? const Color(0xFF2a3a50) : kBorder;
     final textC = isDark ? Colors.white : kText;
@@ -689,9 +714,8 @@ class _ClockWidgetState extends State<_ClockWidget> {
 
 // ===== ADMIN DASHBOARD =====
 class AdminDashboardPage extends StatelessWidget {
-  final List<Laporan> laporanData;
   final String username;
-  const AdminDashboardPage({super.key, required this.laporanData, required this.username});
+  const AdminDashboardPage({super.key, required this.username});
 
   void _showUserDetail(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -856,11 +880,11 @@ class AdminDashboardPage extends StatelessWidget {
     final border = isDark ? const Color(0xFF2a3a50) : kBorder;
     final mutedC = isDark ? const Color(0xFF8a9bb0) : kTextMuted;
 
-    final total = laporanData.length;
-    final menunggu = laporanData.where((l) => l.status == 'Menunggu').toList();
-    final selesai = laporanData.where((l) => l.status == 'Selesai').toList();
-    final darurat = laporanData.where((l) => l.status == 'Darurat').toList();
-    final diproses = laporanData.where((l) => l.status == 'Diproses').toList();
+    final total = AppDB.laporan.length;
+    final menunggu = AppDB.laporan.where((l) => l.status == 'Menunggu').toList();
+    final selesai = AppDB.laporan.where((l) => l.status == 'Selesai').toList();
+    final darurat = AppDB.laporan.where((l) => l.status == 'Darurat').toList();
+    final diproses = AppDB.laporan.where((l) => l.status == 'Diproses').toList();
     final totalUser = AppDB.users.where((u) => u.role == 'user').length;
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -961,14 +985,14 @@ class AdminDashboardPage extends StatelessWidget {
               const SizedBox(width: 8),
               const Text('Laporan Terbaru', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
               const Spacer(),
-              if (laporanData.isNotEmpty)
+              if (AppDB.laporan.isNotEmpty)
                 Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                   decoration: BoxDecoration(color: kPrimary.withOpacity(0.08), borderRadius: BorderRadius.circular(20)),
-                  child: Text('${laporanData.length} total', style: const TextStyle(color: kPrimary, fontSize: 11, fontWeight: FontWeight.w700))),
+                  child: Text('${AppDB.laporan.length} total', style: const TextStyle(color: kPrimary, fontSize: 11, fontWeight: FontWeight.w700))),
             ]),
           ),
           Divider(height: 1, color: border),
-          laporanData.isEmpty
+          AppDB.laporan.isEmpty
             ? Padding(
                 padding: const EdgeInsets.symmetric(vertical: 36),
                 child: Column(children: [
@@ -980,7 +1004,7 @@ class AdminDashboardPage extends StatelessWidget {
                   Text('Laporan dari masyarakat akan muncul di sini', style: TextStyle(fontSize: 12, color: mutedC)),
                 ]),
               )
-            : Column(children: laporanData.take(5).map((l) => _LaporanTile(l: l)).toList()),
+            : Column(children: AppDB.laporan.take(5).map((l) => _LaporanTile(l: l)).toList()),
         ]),
       ),
       const SizedBox(height: 8),
@@ -990,9 +1014,8 @@ class AdminDashboardPage extends StatelessWidget {
 
 // ===== USER DASHBOARD =====
 class UserDashboardPage extends StatelessWidget {
-  final List<Laporan> laporanData;
   final String username, myUsername;
-  const UserDashboardPage({super.key, required this.laporanData, required this.username, required this.myUsername});
+  const UserDashboardPage({super.key, required this.username, required this.myUsername});
 
   void _showStatDetail(BuildContext context, String label, String icon, Color color, List<Laporan> filtered) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1064,7 +1087,7 @@ class UserDashboardPage extends StatelessWidget {
     final border = isDark ? const Color(0xFF2a3a50) : kBorder;
     final mutedC = isDark ? const Color(0xFF8a9bb0) : kTextMuted;
 
-    final my = laporanData.where((l) => l.pelapor == myUsername).toList();
+    final my = AppDB.laporan.where((l) => l.pelapor == myUsername).toList();
     final selesai = my.where((l) => l.status == 'Selesai').toList();
     final diproses = my.where((l) => l.status == 'Diproses').toList();
     final menunggu = my.where((l) => l.status == 'Menunggu').toList();
@@ -1166,10 +1189,8 @@ class UserDashboardPage extends StatelessWidget {
 
 // ===== ADMIN LAPORAN =====
 class AdminLaporanPage extends StatefulWidget {
-  final List<Laporan> laporanData;
-  final VoidCallback onUpdate;
   final Function(String) showToast;
-  const AdminLaporanPage({super.key, required this.laporanData, required this.onUpdate, required this.showToast});
+  const AdminLaporanPage({super.key, required this.showToast});
   @override
   State<AdminLaporanPage> createState() => _AdminLaporanPageState();
 }
@@ -1178,7 +1199,7 @@ class _AdminLaporanPageState extends State<AdminLaporanPage> {
   String searchQ = '';
   String filterStatus = '';
 
-  List<Laporan> get filtered => widget.laporanData.where((l) {
+  List<Laporan> get filtered => AppDB.laporan.where((l) {
     final matchQ = l.judul.toLowerCase().contains(searchQ.toLowerCase()) || l.pelapor.toLowerCase().contains(searchQ.toLowerCase());
     final matchS = filterStatus.isEmpty || l.status == filterStatus;
     return matchQ && matchS;
@@ -1209,7 +1230,13 @@ class _AdminLaporanPageState extends State<AdminLaporanPage> {
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Tutup')),
         ElevatedButton(
-          onPressed: () { setState(() => l.status = newStatus); widget.onUpdate(); Navigator.pop(ctx); widget.showToast('✅ Status diperbarui!'); },
+          onPressed: () {
+            l.status = newStatus;
+            AppDB.updateLaporan(); // trigger semua listener rebuild
+            setState(() {});
+            Navigator.pop(ctx);
+            widget.showToast('✅ Status diperbarui!');
+          },
           style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white),
           child: const Text('💾 Simpan')),
       ],
@@ -1247,11 +1274,9 @@ class _AdminLaporanPageState extends State<AdminLaporanPage> {
 
 // ===== USER LAPORAN =====
 class UserLaporanPage extends StatefulWidget {
-  final List<Laporan> laporanData;
   final String username;
-  final VoidCallback onUpdate;
   final Function(String) showToast;
-  const UserLaporanPage({super.key, required this.laporanData, required this.username, required this.onUpdate, required this.showToast});
+  const UserLaporanPage({super.key, required this.username, required this.showToast});
   @override
   State<UserLaporanPage> createState() => _UserLaporanPageState();
 }
@@ -1304,7 +1329,7 @@ class _UserLaporanPageState extends State<UserLaporanPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = isDark ? const Color(0xFF1e2d3d) : Colors.white;
     final borderC = isDark ? const Color(0xFF2a3a50) : kBorder;
-    final my = widget.laporanData.where((l) => l.pelapor == widget.username).toList();
+    final my = AppDB.laporan.where((l) => l.pelapor == widget.username).toList();
     final filtered = my.where((l) {
       final q = searchQ.toLowerCase();
       return (q.isEmpty || l.judul.toLowerCase().contains(q) || l.lokasi.toLowerCase().contains(q))
@@ -1344,10 +1369,9 @@ class _UserLaporanPageState extends State<UserLaporanPage> {
 
 // ===== BUAT LAPORAN =====
 class BuatLaporanPage extends StatefulWidget {
-  final List<Laporan> laporanData;
   final String username;
   final VoidCallback onUpdate;
-  const BuatLaporanPage({super.key, required this.laporanData, required this.username, required this.onUpdate});
+  const BuatLaporanPage({super.key, required this.username, required this.onUpdate});
   @override
   State<BuatLaporanPage> createState() => _BuatLaporanPageState();
 }
@@ -1364,8 +1388,8 @@ class _BuatLaporanPageState extends State<BuatLaporanPage> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Judul dan deskripsi wajib diisi!')));
       return;
     }
-    widget.laporanData.insert(0, Laporan(
-      id: widget.laporanData.length + 1, judul: judulCtrl.text, pelapor: widget.username,
+    AppDB.addLaporan(Laporan(
+      id: AppDB.laporan.length + 1, judul: judulCtrl.text, pelapor: widget.username,
       kategori: kategori, tanggal: DateTime.now().toString().split(' ')[0],
       status: prioritas == 'Darurat' ? 'Darurat' : 'Menunggu',
       prioritas: prioritas, lokasi: lokasiCtrl.text, deskripsi: deskCtrl.text));
@@ -1460,15 +1484,14 @@ class ProfilPage extends StatelessWidget {
 
 // ===== USER STATISTIK =====
 class UserStatistikPage extends StatelessWidget {
-  final List<Laporan> laporanData;
   final String username;
-  const UserStatistikPage({super.key, required this.laporanData, required this.username});
+  const UserStatistikPage({super.key, required this.username});
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = isDark ? const Color(0xFF1e2d3d) : Colors.white;
     final borderC = isDark ? const Color(0xFF2a3a50) : kBorder;
-    final my = laporanData.where((l) => l.pelapor == username).toList();
+    final my = AppDB.laporan.where((l) => l.pelapor == username).toList();
     final byKategori = <String, int>{};
     for (final l in my) { byKategori[l.kategori] = (byKategori[l.kategori] ?? 0) + 1; }
     final selesai = my.where((l) => l.status == 'Selesai').length;
@@ -1878,19 +1901,18 @@ class BerkasPage extends StatelessWidget {
 
 // ===== STATISTIK =====
 class StatistikPage extends StatelessWidget {
-  final List<Laporan> laporanData;
-  const StatistikPage({super.key, required this.laporanData});
+  const StatistikPage({super.key});
   @override
   Widget build(BuildContext context) {
     final byKategori = <String, int>{};
-    for (final l in laporanData) { byKategori[l.kategori] = (byKategori[l.kategori] ?? 0) + 1; }
+    for (final l in AppDB.laporan) { byKategori[l.kategori] = (byKategori[l.kategori] ?? 0) + 1; }
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text('Statistik', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
       const Text('Analisis data laporan kecamatan', style: TextStyle(fontSize: 13, color: kTextMuted)),
       const SizedBox(height: 24),
       Container(padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: kBorder)),
-        child: laporanData.isEmpty
+        child: AppDB.laporan.isEmpty
           ? const Center(child: Padding(padding: EdgeInsets.all(16), child: Text('Belum ada data laporan.', style: TextStyle(color: kTextMuted))))
           : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('📊 Laporan per Kategori', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
@@ -1900,7 +1922,7 @@ class StatistikPage extends StatelessWidget {
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(e.key, style: const TextStyle(fontSize: 13)), Text('${e.value}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13))]),
                   const SizedBox(height: 4),
-                  ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: e.value / laporanData.length, backgroundColor: kBg, color: kPrimary, minHeight: 8)),
+                  ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: e.value / AppDB.laporan.length, backgroundColor: kBg, color: kPrimary, minHeight: 8)),
                 ]))),
             ])),
     ]);
