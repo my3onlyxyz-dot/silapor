@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
+// ===== THEME NOTIFIER =====
+final themeNotifier = ValueNotifier<ThemeMode>(ThemeMode.light);
+
 void main() { runApp(const SiLaporApp()); }
 
 // ===== MODEL =====
@@ -44,11 +47,26 @@ const kInfo = Color(0xFF3498db);
 class SiLaporApp extends StatelessWidget {
   const SiLaporApp({super.key});
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'SiLapor',
-    debugShowCheckedModeBanner: false,
-    theme: ThemeData(fontFamily: 'sans-serif', colorScheme: ColorScheme.fromSeed(seedColor: kPrimary), useMaterial3: true),
-    home: const LoginPage(),
+  Widget build(BuildContext context) => ValueListenableBuilder<ThemeMode>(
+    valueListenable: themeNotifier,
+    builder: (_, mode, __) => MaterialApp(
+      title: 'SiLapor',
+      debugShowCheckedModeBanner: false,
+      themeMode: mode,
+      theme: ThemeData(
+        fontFamily: 'sans-serif',
+        colorScheme: ColorScheme.fromSeed(seedColor: kPrimary, brightness: Brightness.light),
+        useMaterial3: true,
+        scaffoldBackgroundColor: kBg,
+      ),
+      darkTheme: ThemeData(
+        fontFamily: 'sans-serif',
+        colorScheme: ColorScheme.fromSeed(seedColor: kPrimary, brightness: Brightness.dark),
+        useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFF0f1923),
+      ),
+      home: const LoginPage(),
+    ),
   );
 }
 
@@ -346,7 +364,7 @@ class _AppPageState extends State<AppPage> {
     }
 
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(children: [
         isWide
           ? Row(children: [
@@ -1004,7 +1022,7 @@ class StatistikPage extends StatelessWidget {
   }
 }
 
-// ===== PENGATURAN =====
+// ===== PENGATURAN (REDESIGNED) =====
 class PengaturanPage extends StatefulWidget {
   final Function(String) showToast;
   const PengaturanPage({super.key, required this.showToast});
@@ -1012,88 +1030,409 @@ class PengaturanPage extends StatefulWidget {
   State<PengaturanPage> createState() => _PengaturanPageState();
 }
 
-class _PengaturanPageState extends State<PengaturanPage> {
+class _PengaturanPageState extends State<PengaturanPage> with SingleTickerProviderStateMixin {
   bool notifLaporan = true;
   bool notifDarurat = true;
+  bool isDarkMode = false;
+  late TabController _tabCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabCtrl = TabController(length: 4, vsync: this);
+    isDarkMode = themeNotifier.value == ThemeMode.dark;
+  }
+
+  @override
+  void dispose() { _tabCtrl.dispose(); super.dispose(); }
+
+  void _toggleDarkMode(bool v) {
+    setState(() => isDarkMode = v);
+    themeNotifier.value = v ? ThemeMode.dark : ThemeMode.light;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1e2d3d) : Colors.white;
+    final borderColor = isDark ? const Color(0xFF2d4259) : kBorder;
+    final textColor = isDark ? Colors.white : kText;
+    final mutedColor = isDark ? const Color(0xFF8a9bb0) : kTextMuted;
+    final inputFill = isDark ? const Color(0xFF162130) : const Color(0xFFF8FAFC);
+
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Pengaturan Sistem', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-      const Text('Konfigurasi aplikasi pelaporan kecamatan', style: TextStyle(fontSize: 13, color: kTextMuted)),
+      // ===== HEADER =====
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [kPrimary, kPrimaryLight], begin: Alignment.topLeft, end: Alignment.bottomRight),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: kPrimary.withOpacity(0.35), blurRadius: 18, offset: const Offset(0, 8))],
+        ),
+        child: Row(children: [
+          Container(width: 52, height: 52, decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(14)),
+            child: const Center(child: Text('⚙️', style: TextStyle(fontSize: 24)))),
+          const SizedBox(width: 16),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Pengaturan Sistem', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+            const Text('Konfigurasi aplikasi pelaporan kecamatan', style: TextStyle(color: Colors.white60, fontSize: 12)),
+          ])),
+          // DARK MODE TOGGLE — Hero Feature
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(30)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Text(isDarkMode ? '🌙' : '☀️', style: const TextStyle(fontSize: 16)),
+              const SizedBox(width: 8),
+              Text(isDarkMode ? 'Dark' : 'Light', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => _toggleDarkMode(!isDarkMode),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  width: 44, height: 24,
+                  decoration: BoxDecoration(
+                    color: isDarkMode ? const Color(0xFF5B7FFF) : Colors.white.withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: AnimatedAlign(
+                    duration: const Duration(milliseconds: 250),
+                    alignment: isDarkMode ? Alignment.centerRight : Alignment.centerLeft,
+                    child: Container(margin: const EdgeInsets.all(3), width: 18, height: 18,
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(9),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)])),
+                  ),
+                ),
+              ),
+            ]),
+          ),
+        ]),
+      ),
       const SizedBox(height: 20),
 
-      // ===== INFO KECAMATAN =====
-      _SectionCard(title: '🏛️ Info Kecamatan', children: [
-        _SettingField(label: 'Nama Kecamatan', value: 'Kecamatan Brang Ene'),
-        _SettingField(label: 'Kabupaten/Kota', value: 'Kabupaten Sumbawa Barat'),
-        _SettingField(label: 'Camat', value: 'Bpk. H. Budi Santoso, S.IP'),
-        _SettingField(label: 'Alamat', value: 'Jl. Raya Brang Ene, NTB'),
-      ]),
-      const SizedBox(height: 16),
-
-      // ===== KONTAK =====
-      _SectionCard(title: '📞 Kontak & Layanan', children: [
-        _SettingField(label: 'No. Telepon Kantor', value: '+6285173464488'),
-        _SettingField(label: 'No. WhatsApp Pengaduan', value: '+6285173464488'),
-        _SettingField(label: 'Email Resmi', value: 'my3onlyxyz@gmail.com'),
-        _SettingField(label: 'Jam Operasional', value: 'Senin – Jumat, 08:00 – 16:00 WITA'),
-      ]),
-      const SizedBox(height: 16),
-
-      // ===== WILAYAH =====
-      _SectionCard(title: '🗺️ Wilayah', children: [
-        _SettingField(label: 'Jumlah Desa', value: '6 Desa'),
-        _SettingField(label: 'Desa/Kelurahan', value: 'Mura, Kalimantong, Lampok, Manemeng, Mujahiddin, Mataiyang'),
-        _SettingField(label: 'Jumlah RT', value: '- (isi manual)'),
-        _SettingField(label: 'Jumlah RW', value: '- (isi manual)'),
-        _SettingField(label: 'Kode Pos', value: '84455'),
-      ]),
-      const SizedBox(height: 16),
-
-      // ===== SLA =====
-      _SectionCard(title: '📋 SLA Laporan', children: [
-        _SettingField(label: 'Batas Waktu Tanggapan', value: '3 hari kerja'),
-        _SettingField(label: 'Batas Waktu Penyelesaian', value: '14 hari kerja'),
-      ]),
-      const SizedBox(height: 16),
-
-      // ===== NOTIFIKASI =====
+      // ===== TAB BAR =====
       Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: kBorder)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('🔔 Notifikasi', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 16),
-          _ToggleRow(label: 'Notifikasi laporan baru', sublabel: 'Terima pemberitahuan saat ada laporan masuk',
-            value: notifLaporan, onChanged: (v) => setState(() => notifLaporan = v)),
-          const Divider(color: kBorder),
-          _ToggleRow(label: 'Notifikasi laporan darurat', sublabel: 'Terima pemberitahuan prioritas tinggi',
-            value: notifDarurat, onChanged: (v) => setState(() => notifDarurat = v)),
-        ]),
+        decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(14), border: Border.all(color: borderColor)),
+        child: TabBar(
+          controller: _tabCtrl,
+          labelColor: kPrimary,
+          unselectedLabelColor: mutedColor,
+          labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+          unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          indicator: BoxDecoration(color: kPrimary.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+          indicatorSize: TabBarIndicatorSize.tab,
+          dividerColor: Colors.transparent,
+          tabs: const [
+            Tab(text: '🏛️ Kecamatan'),
+            Tab(text: '📞 Kontak'),
+            Tab(text: '🔔 Notifikasi'),
+            Tab(text: '👤 Akun'),
+          ],
+        ),
       ),
       const SizedBox(height: 16),
 
-      // ===== AKUN ADMIN =====
-      _SectionCard(title: '👤 Akun Admin', children: [
-        _SettingField(label: 'Nama Tampilan', value: 'Administrator'),
-        _SettingField(label: 'Username', value: 'admin'),
-        _SettingField(label: 'Password Baru', value: '', hint: 'Kosongkan jika tidak diubah', obscure: true),
-        _SettingField(label: 'Konfirmasi Password', value: '', hint: 'Ulangi password baru', obscure: true),
-      ]),
-      const SizedBox(height: 20),
+      // ===== TAB VIEWS =====
+      SizedBox(
+        height: 520,
+        child: TabBarView(controller: _tabCtrl, children: [
 
+          // --- TAB 1: INFO KECAMATAN + WILAYAH + SLA ---
+          SingleChildScrollView(child: Column(children: [
+            _ElegantCard(title: '🏛️ Informasi Kecamatan', subtitle: 'Data identitas kecamatan', cardBg: cardBg, borderColor: borderColor, children: [
+              _ElegantField(label: 'Nama Kecamatan', value: 'Kecamatan Brang Ene', icon: '🏢', inputFill: inputFill, mutedColor: mutedColor, textColor: textColor, borderColor: borderColor),
+              _ElegantField(label: 'Kabupaten / Kota', value: 'Kabupaten Sumbawa Barat', icon: '📍', inputFill: inputFill, mutedColor: mutedColor, textColor: textColor, borderColor: borderColor),
+              _ElegantField(label: 'Nama Camat', value: 'Bpk. H. Budi Santoso, S.IP', icon: '👨‍💼', inputFill: inputFill, mutedColor: mutedColor, textColor: textColor, borderColor: borderColor),
+              _ElegantField(label: 'Alamat Kantor', value: 'Jl. Raya Brang Ene, NTB', icon: '🗺️', inputFill: inputFill, mutedColor: mutedColor, textColor: textColor, borderColor: borderColor),
+            ]),
+            const SizedBox(height: 14),
+            _ElegantCard(title: '🗺️ Data Wilayah', subtitle: 'Informasi wilayah administratif', cardBg: cardBg, borderColor: borderColor, children: [
+              _ElegantField(label: 'Jumlah Desa', value: '6 Desa', icon: '🏘️', inputFill: inputFill, mutedColor: mutedColor, textColor: textColor, borderColor: borderColor),
+              _ElegantField(label: 'Desa / Kelurahan', value: 'Mura, Kalimantong, Lampok, Manemeng, Mujahiddin, Mataiyang', icon: '📋', inputFill: inputFill, mutedColor: mutedColor, textColor: textColor, borderColor: borderColor),
+              Row(children: [
+                Expanded(child: _ElegantField(label: 'Jumlah RT', value: '-', icon: '🏠', inputFill: inputFill, mutedColor: mutedColor, textColor: textColor, borderColor: borderColor)),
+                const SizedBox(width: 12),
+                Expanded(child: _ElegantField(label: 'Jumlah RW', value: '-', icon: '🏠', inputFill: inputFill, mutedColor: mutedColor, textColor: textColor, borderColor: borderColor)),
+                const SizedBox(width: 12),
+                Expanded(child: _ElegantField(label: 'Kode Pos', value: '84455', icon: '📮', inputFill: inputFill, mutedColor: mutedColor, textColor: textColor, borderColor: borderColor)),
+              ]),
+            ]),
+            const SizedBox(height: 14),
+            _ElegantCard(title: '📋 SLA Laporan', subtitle: 'Batas waktu penanganan laporan', cardBg: cardBg, borderColor: borderColor, children: [
+              Row(children: [
+                Expanded(child: _SlaChip(label: 'Tanggapan', value: '3 hari kerja', color: kInfo, icon: '⚡')),
+                const SizedBox(width: 12),
+                Expanded(child: _SlaChip(label: 'Penyelesaian', value: '14 hari kerja', color: kSuccess, icon: '✅')),
+              ]),
+            ]),
+          ])),
+
+          // --- TAB 2: KONTAK ---
+          SingleChildScrollView(child: Column(children: [
+            _ElegantCard(title: '📞 Kontak & Layanan', subtitle: 'Informasi kontak resmi kecamatan', cardBg: cardBg, borderColor: borderColor, children: [
+              _ElegantField(label: 'No. Telepon Kantor', value: '+6285173464488', icon: '📞', inputFill: inputFill, mutedColor: mutedColor, textColor: textColor, borderColor: borderColor),
+              _ElegantField(label: 'No. WhatsApp Pengaduan', value: '+6285173464488', icon: '💬', inputFill: inputFill, mutedColor: mutedColor, textColor: textColor, borderColor: borderColor),
+              _ElegantField(label: 'Email Resmi', value: 'my3onlyxyz@gmail.com', icon: '✉️', inputFill: inputFill, mutedColor: mutedColor, textColor: textColor, borderColor: borderColor),
+              _ElegantField(label: 'Jam Operasional', value: 'Senin – Jumat, 08:00 – 16:00 WITA', icon: '🕐', inputFill: inputFill, mutedColor: mutedColor, textColor: textColor, borderColor: borderColor),
+            ]),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [kInfo.withOpacity(0.08), kPrimary.withOpacity(0.05)]),
+                borderRadius: BorderRadius.circular(14), border: Border.all(color: kInfo.withOpacity(0.25))),
+              child: Row(children: [
+                Container(width: 42, height: 42, decoration: BoxDecoration(color: kInfo.withOpacity(0.15), borderRadius: BorderRadius.circular(11)),
+                  child: const Center(child: Text('ℹ️', style: TextStyle(fontSize: 18)))),
+                const SizedBox(width: 14),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Info', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: kInfo)),
+                  Text('Perubahan kontak akan tampil di halaman Contact FAB pada semua pengguna.', style: TextStyle(fontSize: 11, color: mutedColor)),
+                ])),
+              ]),
+            ),
+          ])),
+
+          // --- TAB 3: NOTIFIKASI & TAMPILAN ---
+          SingleChildScrollView(child: Column(children: [
+            // DARK MODE CARD
+            Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isDarkMode
+                    ? [const Color(0xFF1a2b45), const Color(0xFF0f1923)]
+                    : [const Color(0xFFf0f7ff), Colors.white],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: isDarkMode ? const Color(0xFF2d4259) : const Color(0xFFcde0f5)),
+              ),
+              child: Row(children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  width: 52, height: 52,
+                  decoration: BoxDecoration(
+                    color: isDarkMode ? const Color(0xFF243650) : const Color(0xFFe3f0fb),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Center(child: Text(isDarkMode ? '🌙' : '☀️', style: const TextStyle(fontSize: 24))),
+                ),
+                const SizedBox(width: 16),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Mode Tampilan', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: textColor)),
+                  Text(isDarkMode ? 'Dark Mode aktif — Tampilan gelap nyaman di malam hari' : 'Light Mode aktif — Tampilan terang dan bersih',
+                    style: TextStyle(fontSize: 11, color: mutedColor)),
+                ])),
+                GestureDetector(
+                  onTap: () => _toggleDarkMode(!isDarkMode),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    width: 52, height: 28,
+                    decoration: BoxDecoration(
+                      color: isDarkMode ? const Color(0xFF5B7FFF) : const Color(0xFFCBD5E0),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: AnimatedAlign(
+                      duration: const Duration(milliseconds: 250),
+                      alignment: isDarkMode ? Alignment.centerRight : Alignment.centerLeft,
+                      child: Container(margin: const EdgeInsets.all(3), width: 22, height: 22,
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(11),
+                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 6)])),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+
+            _ElegantCard(title: '🔔 Notifikasi', subtitle: 'Atur preferensi pemberitahuan', cardBg: cardBg, borderColor: borderColor, children: [
+              _ElegantToggle(
+                icon: '📩', label: 'Laporan Baru Masuk',
+                sublabel: 'Pemberitahuan saat ada laporan dari masyarakat',
+                value: notifLaporan, activeColor: kPrimary,
+                onChanged: (v) => setState(() => notifLaporan = v),
+                textColor: textColor, mutedColor: mutedColor, borderColor: borderColor,
+              ),
+              const SizedBox(height: 10),
+              _ElegantToggle(
+                icon: '🚨', label: 'Laporan Darurat',
+                sublabel: 'Pemberitahuan prioritas tinggi dan mendesak',
+                value: notifDarurat, activeColor: kDanger,
+                onChanged: (v) => setState(() => notifDarurat = v),
+                textColor: textColor, mutedColor: mutedColor, borderColor: borderColor,
+              ),
+            ]),
+          ])),
+
+          // --- TAB 4: AKUN ADMIN ---
+          SingleChildScrollView(child: Column(children: [
+            // AVATAR CARD
+            Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(16), border: Border.all(color: borderColor)),
+              child: Column(children: [
+                Stack(children: [
+                  Container(width: 80, height: 80,
+                    decoration: BoxDecoration(gradient: const LinearGradient(colors: [kPrimary, kPrimaryLight]), borderRadius: BorderRadius.circular(24)),
+                    child: const Center(child: Text('A', style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800)))),
+                  Positioned(bottom: 0, right: 0, child: Container(width: 24, height: 24,
+                    decoration: BoxDecoration(color: kAccent, borderRadius: BorderRadius.circular(8), border: Border.all(color: cardBg, width: 2)),
+                    child: const Center(child: Text('👑', style: TextStyle(fontSize: 11))))),
+                ]),
+                const SizedBox(height: 12),
+                Text('Administrator', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: textColor)),
+                const SizedBox(height: 4),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                  decoration: BoxDecoration(color: kAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
+                  child: const Text('Super Admin', style: TextStyle(color: kAccent, fontSize: 12, fontWeight: FontWeight.w700))),
+              ]),
+            ),
+
+            _ElegantCard(title: '👤 Informasi Akun', subtitle: 'Data login administrator', cardBg: cardBg, borderColor: borderColor, children: [
+              _ElegantField(label: 'Nama Tampilan', value: 'Administrator', icon: '👤', inputFill: inputFill, mutedColor: mutedColor, textColor: textColor, borderColor: borderColor),
+              _ElegantField(label: 'Username', value: 'admin', icon: '🔑', inputFill: inputFill, mutedColor: mutedColor, textColor: textColor, borderColor: borderColor),
+            ]),
+            const SizedBox(height: 14),
+            _ElegantCard(title: '🔒 Keamanan', subtitle: 'Ubah password akun admin', cardBg: cardBg, borderColor: borderColor, children: [
+              _ElegantField(label: 'Password Baru', value: '', hint: 'Kosongkan jika tidak ingin mengubah', icon: '🔐', obscure: true, inputFill: inputFill, mutedColor: mutedColor, textColor: textColor, borderColor: borderColor),
+              _ElegantField(label: 'Konfirmasi Password', value: '', hint: 'Ulangi password baru', icon: '🔐', obscure: true, inputFill: inputFill, mutedColor: mutedColor, textColor: textColor, borderColor: borderColor),
+            ]),
+          ])),
+        ]),
+      ),
+
+      const SizedBox(height: 20),
+      // ===== SAVE BUTTON =====
       SizedBox(width: double.infinity,
         child: ElevatedButton(
           onPressed: () => widget.showToast('💾 Pengaturan berhasil disimpan!'),
-          style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-          child: const Text('💾 Simpan Semua Pengaturan', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)))),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: kPrimary, foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            elevation: 4,
+            shadowColor: kPrimary.withOpacity(0.4),
+          ),
+          child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Text('💾', style: TextStyle(fontSize: 16)),
+            SizedBox(width: 8),
+            Text('Simpan Semua Pengaturan', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          ]),
+        )),
       const SizedBox(height: 24),
     ]);
   }
 }
 
+// ===== ELEGANT CARD =====
+class _ElegantCard extends StatelessWidget {
+  final String title, subtitle;
+  final List<Widget> children;
+  final Color cardBg, borderColor;
+  const _ElegantCard({required this.title, required this.subtitle, required this.children, required this.cardBg, required this.borderColor});
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(16), border: Border.all(color: borderColor),
+      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4))]),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+          Text(subtitle, style: const TextStyle(fontSize: 11, color: kTextMuted)),
+        ])),
+      ]),
+      const SizedBox(height: 16),
+      const Divider(height: 1, color: Color(0xFFEDF2F7)),
+      const SizedBox(height: 16),
+      ...children,
+    ]));
+}
+
+// ===== ELEGANT FIELD =====
+class _ElegantField extends StatelessWidget {
+  final String label, value, icon;
+  final String? hint;
+  final bool obscure;
+  final Color inputFill, mutedColor, textColor, borderColor;
+  const _ElegantField({required this.label, required this.value, required this.icon,
+    this.hint, this.obscure = false,
+    required this.inputFill, required this.mutedColor, required this.textColor, required this.borderColor});
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 14),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Text(icon, style: const TextStyle(fontSize: 13)),
+        const SizedBox(width: 6),
+        Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: mutedColor)),
+      ]),
+      const SizedBox(height: 6),
+      TextFormField(
+        initialValue: value, obscureText: obscure,
+        style: TextStyle(fontSize: 13, color: textColor, fontWeight: FontWeight.w500),
+        decoration: InputDecoration(
+          filled: true, fillColor: inputFill,
+          hintText: hint, hintStyle: TextStyle(color: mutedColor, fontSize: 12),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: borderColor)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: borderColor)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kPrimaryLight, width: 1.5))),
+      ),
+    ]));
+}
+
+// ===== ELEGANT TOGGLE =====
+class _ElegantToggle extends StatelessWidget {
+  final String icon, label, sublabel;
+  final bool value;
+  final Color activeColor, textColor, mutedColor, borderColor;
+  final Function(bool) onChanged;
+  const _ElegantToggle({required this.icon, required this.label, required this.sublabel,
+    required this.value, required this.activeColor, required this.onChanged,
+    required this.textColor, required this.mutedColor, required this.borderColor});
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: value ? activeColor.withOpacity(0.06) : Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: value ? activeColor.withOpacity(0.3) : borderColor),
+    ),
+    child: Row(children: [
+      Container(width: 38, height: 38,
+        decoration: BoxDecoration(color: value ? activeColor.withOpacity(0.12) : borderColor.withOpacity(0.5), borderRadius: BorderRadius.circular(10)),
+        child: Center(child: Text(icon, style: const TextStyle(fontSize: 17)))),
+      const SizedBox(width: 12),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
+        Text(sublabel, style: TextStyle(fontSize: 11, color: mutedColor)),
+      ])),
+      Switch(value: value, onChanged: onChanged, activeColor: activeColor, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap),
+    ]));
+}
+
+// ===== SLA CHIP =====
+class _SlaChip extends StatelessWidget {
+  final String label, value, icon;
+  final Color color;
+  const _SlaChip({required this.label, required this.value, required this.icon, required this.color});
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withOpacity(0.3))),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(icon, style: const TextStyle(fontSize: 22)),
+      const SizedBox(height: 8),
+      Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: color)),
+      Text(label, style: TextStyle(fontSize: 11, color: color.withOpacity(0.7), fontWeight: FontWeight.w500)),
+    ]));
+}
+
+// ===== LEGACY SECTION CARD (kept for compatibility) =====
 class _SectionCard extends StatelessWidget {
   final String title;
   final List<Widget> children;
