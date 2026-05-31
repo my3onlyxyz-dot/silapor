@@ -1005,44 +1005,146 @@ class StatistikPage extends StatelessWidget {
 }
 
 // ===== PENGATURAN =====
-class PengaturanPage extends StatelessWidget {
+class PengaturanPage extends StatefulWidget {
   final Function(String) showToast;
   const PengaturanPage({super.key, required this.showToast});
   @override
-  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    const Text('Pengaturan Sistem', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-    const Text('Konfigurasi aplikasi pelaporan kecamatan', style: TextStyle(fontSize: 13, color: kTextMuted)),
-    const SizedBox(height: 24),
-    Container(padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: kBorder)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('🏛️ Info Kecamatan', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 16),
-        _SettingField(label: 'Nama Kecamatan', value: 'Kecamatan Contoh Jaya'),
-        _SettingField(label: 'Kabupaten/Kota', value: 'Kota Contoh'),
+  State<PengaturanPage> createState() => _PengaturanPageState();
+}
+
+class _PengaturanPageState extends State<PengaturanPage> {
+  bool notifLaporan = true;
+  bool notifDarurat = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('Pengaturan Sistem', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+      const Text('Konfigurasi aplikasi pelaporan kecamatan', style: TextStyle(fontSize: 13, color: kTextMuted)),
+      const SizedBox(height: 20),
+
+      // ===== INFO KECAMATAN =====
+      _SectionCard(title: '🏛️ Info Kecamatan', children: [
+        _SettingField(label: 'Nama Kecamatan', value: 'Kecamatan Brang Ene'),
+        _SettingField(label: 'Kabupaten/Kota', value: 'Kabupaten Sumbawa Barat'),
         _SettingField(label: 'Camat', value: 'Bpk. H. Budi Santoso, S.IP'),
-        _SettingField(label: 'Alamat', value: 'Jl. Raya Kecamatan No. 1'),
-        const SizedBox(height: 12),
-        ElevatedButton(onPressed: () => showToast('💾 Pengaturan disimpan!'),
-          style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-          child: const Text('💾 Simpan')),
+        _SettingField(label: 'Alamat', value: 'Jl. Raya Brang Ene, NTB'),
+      ]),
+      const SizedBox(height: 16),
+
+      // ===== KONTAK =====
+      _SectionCard(title: '📞 Kontak & Layanan', children: [
+        _SettingField(label: 'No. Telepon Kantor', value: '+6285173464488'),
+        _SettingField(label: 'No. WhatsApp Pengaduan', value: '+6285173464488'),
+        _SettingField(label: 'Email Resmi', value: 'my3onlyxyz@gmail.com'),
+        _SettingField(label: 'Jam Operasional', value: 'Senin – Jumat, 08:00 – 16:00 WITA'),
+      ]),
+      const SizedBox(height: 16),
+
+      // ===== WILAYAH =====
+      _SectionCard(title: '🗺️ Wilayah', children: [
+        _SettingField(label: 'Jumlah Desa', value: '6 Desa'),
+        _SettingField(label: 'Desa/Kelurahan', value: 'Mura, Kalimantong, Lampok, Manemeng, Mujahiddin, Mataiyang'),
+        _SettingField(label: 'Jumlah RT', value: '- (isi manual)'),
+        _SettingField(label: 'Jumlah RW', value: '- (isi manual)'),
+        _SettingField(label: 'Kode Pos', value: '84455'),
+      ]),
+      const SizedBox(height: 16),
+
+      // ===== SLA =====
+      _SectionCard(title: '📋 SLA Laporan', children: [
+        _SettingField(label: 'Batas Waktu Tanggapan', value: '3 hari kerja'),
+        _SettingField(label: 'Batas Waktu Penyelesaian', value: '14 hari kerja'),
+      ]),
+      const SizedBox(height: 16),
+
+      // ===== NOTIFIKASI =====
+      Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: kBorder)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('🔔 Notifikasi', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 16),
+          _ToggleRow(label: 'Notifikasi laporan baru', sublabel: 'Terima pemberitahuan saat ada laporan masuk',
+            value: notifLaporan, onChanged: (v) => setState(() => notifLaporan = v)),
+          const Divider(color: kBorder),
+          _ToggleRow(label: 'Notifikasi laporan darurat', sublabel: 'Terima pemberitahuan prioritas tinggi',
+            value: notifDarurat, onChanged: (v) => setState(() => notifDarurat = v)),
+        ]),
+      ),
+      const SizedBox(height: 16),
+
+      // ===== AKUN ADMIN =====
+      _SectionCard(title: '👤 Akun Admin', children: [
+        _SettingField(label: 'Nama Tampilan', value: 'Administrator'),
+        _SettingField(label: 'Username', value: 'admin'),
+        _SettingField(label: 'Password Baru', value: '', hint: 'Kosongkan jika tidak diubah', obscure: true),
+        _SettingField(label: 'Konfirmasi Password', value: '', hint: 'Ulangi password baru', obscure: true),
+      ]),
+      const SizedBox(height: 20),
+
+      SizedBox(width: double.infinity,
+        child: ElevatedButton(
+          onPressed: () => widget.showToast('💾 Pengaturan berhasil disimpan!'),
+          style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          child: const Text('💾 Simpan Semua Pengaturan', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)))),
+      const SizedBox(height: 24),
+    ]);
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+  const _SectionCard({required this.title, required this.children});
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: kBorder)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+      const SizedBox(height: 16),
+      ...children,
+    ]));
+}
+
+class _ToggleRow extends StatelessWidget {
+  final String label, sublabel;
+  final bool value;
+  final Function(bool) onChanged;
+  const _ToggleRow({required this.label, required this.sublabel, required this.value, required this.onChanged});
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Row(children: [
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: kText)),
+        Text(sublabel, style: const TextStyle(fontSize: 11, color: kTextMuted)),
       ])),
-  ]);
+      Switch(value: value, onChanged: onChanged, activeColor: kPrimary),
+    ]));
 }
 
 class _SettingField extends StatelessWidget {
   final String label, value;
-  const _SettingField({required this.label, required this.value});
+  final String? hint;
+  final bool obscure;
+  const _SettingField({required this.label, required this.value, this.hint, this.obscure = false});
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 14),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: kTextMuted)),
       const SizedBox(height: 4),
-      TextFormField(initialValue: value, style: const TextStyle(fontSize: 14),
-        decoration: InputDecoration(contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      TextFormField(
+        initialValue: value, obscureText: obscure, style: const TextStyle(fontSize: 14),
+        decoration: InputDecoration(
+          hintText: hint, hintStyle: const TextStyle(color: kTextMuted, fontSize: 13),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: kBorder)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: kBorder)))),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: kBorder)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: kPrimaryLight, width: 2)))),
     ]));
 }
 
