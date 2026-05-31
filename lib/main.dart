@@ -350,7 +350,7 @@ class _AppPageState extends State<AppPage> {
         case 2: page = BerkasPage(showToast: showToast); break;
         case 3: page = StatistikPage(laporanData: laporanData); break;
         case 4: page = ManajemenPenggunaPage(showToast: showToast); break;
-        case 5: page = PengaturanPage(showToast: showToast); break;
+        case 5: page = PengaturanPage(showToast: showToast, onLogout: doLogout); break;
         default: page = AdminDashboardPage(laporanData: laporanData, username: widget.account.nama);
       }
     } else {
@@ -1375,15 +1375,29 @@ class _InfoRow extends StatelessWidget {
 }
 
 // ===== MANAJEMEN PENGGUNA =====
-class ManajemenPenggunaPage extends StatelessWidget {
+class ManajemenPenggunaPage extends StatefulWidget {
   final Function(String) showToast;
   const ManajemenPenggunaPage({super.key, required this.showToast});
+  @override
+  State<ManajemenPenggunaPage> createState() => _ManajemenPenggunaPageState();
+}
+
+class _ManajemenPenggunaPageState extends State<ManajemenPenggunaPage> {
   @override
   Widget build(BuildContext context) {
     final users = AppDB.users.where((u) => u.role == 'user').toList();
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Manajemen Pengguna', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-      Text('${users.length} pengguna terdaftar', style: const TextStyle(fontSize: 13, color: kTextMuted)),
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Manajemen Pengguna', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+          Text('${users.length} pengguna terdaftar', style: const TextStyle(fontSize: 13, color: kTextMuted)),
+        ]),
+        IconButton(
+          onPressed: () => setState(() {}),
+          icon: const Icon(Icons.refresh_rounded, color: kPrimary),
+          tooltip: 'Refresh',
+        ),
+      ]),
       const SizedBox(height: 16),
       Container(
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: kBorder)),
@@ -1462,7 +1476,8 @@ class StatistikPage extends StatelessWidget {
 // ===== PENGATURAN (REDESIGNED) =====
 class PengaturanPage extends StatefulWidget {
   final Function(String) showToast;
-  const PengaturanPage({super.key, required this.showToast});
+  final VoidCallback? onLogout;
+  const PengaturanPage({super.key, required this.showToast, this.onLogout});
   @override
   State<PengaturanPage> createState() => _PengaturanPageState();
 }
@@ -1736,6 +1751,47 @@ class _PengaturanPageState extends State<PengaturanPage> with SingleTickerProvid
               _ElegantField(label: 'Password Baru', value: '', hint: 'Kosongkan jika tidak ingin mengubah', icon: '🔐', obscure: true, inputFill: inputFill, mutedColor: mutedColor, textColor: textColor, borderColor: borderColor),
               _ElegantField(label: 'Konfirmasi Password', value: '', hint: 'Ulangi password baru', icon: '🔐', obscure: true, inputFill: inputFill, mutedColor: mutedColor, textColor: textColor, borderColor: borderColor),
             ]),
+            const SizedBox(height: 14),
+            // LOGOUT BUTTON
+            GestureDetector(
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    title: const Text('🚪 Keluar dari Akun', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    content: const Text('Apakah Anda yakin ingin keluar dari akun ini?', style: TextStyle(fontSize: 13)),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+                      ElevatedButton(
+                        onPressed: () { Navigator.pop(context); widget.onLogout?.call(); },
+                        style: ElevatedButton.styleFrom(backgroundColor: kDanger, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                        child: const Text('Ya, Keluar'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: kDanger.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: kDanger.withOpacity(0.35)),
+                ),
+                child: Row(children: [
+                  Container(width: 40, height: 40, decoration: BoxDecoration(color: kDanger.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                    child: const Center(child: Text('🚪', style: TextStyle(fontSize: 18)))),
+                  const SizedBox(width: 14),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('Keluar dari Akun', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kDanger)),
+                    Text('Akhiri sesi dan kembali ke halaman login', style: TextStyle(fontSize: 11, color: kDanger.withOpacity(0.7))),
+                  ])),
+                  Icon(Icons.chevron_right_rounded, color: kDanger.withOpacity(0.6)),
+                ]),
+              ),
+            ),
           ])),
         ]),
       ),
