@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 void main() { runApp(const SiLaporApp()); }
@@ -301,6 +302,7 @@ class _AppPageState extends State<AppPage> {
   int selectedNav = 0;
   String toastMsg = '';
   List<Laporan> laporanData = [];
+  bool showContactMenu = false;
 
   bool get isAdmin => widget.account.role == 'admin';
 
@@ -358,9 +360,59 @@ class _AppPageState extends State<AppPage> {
               _Topbar(title: navLabels[selectedNav], laporanData: laporanData, isAdmin: isAdmin),
               Expanded(child: SingleChildScrollView(padding: const EdgeInsets.all(16), child: page)),
             ]),
+
+        // ===== CONTACT FAB =====
+        if (showContactMenu)
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => setState(() => showContactMenu = false),
+              child: Container(color: Colors.black.withOpacity(0.3)),
+            ),
+          ),
+        if (showContactMenu)
+          Positioned(
+            bottom: 90,
+            right: 20,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                _ContactItem(icon: '📞', label: 'Telepon Kecamatan', sublabel: '(021) 123-4567', color: kPrimary,
+                  onTap: () { setState(() => showContactMenu = false); showToast('📞 Menghubungi (021) 123-4567...'); }),
+                const SizedBox(height: 10),
+                _ContactItem(icon: '✉️', label: 'Email Kecamatan', sublabel: 'info@kec-contoh.go.id', color: kInfo,
+                  onTap: () { setState(() => showContactMenu = false); showToast('✉️ Membuka email...'); }),
+                const SizedBox(height: 10),
+                _ContactItem(icon: '💬', label: 'WhatsApp', sublabel: '+62 812-3456-7890', color: const Color(0xFF25D366),
+                  onTap: () { setState(() => showContactMenu = false); showToast('💬 Membuka WhatsApp...'); }),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        Positioned(
+          bottom: 24,
+          right: 20,
+          child: GestureDetector(
+            onTap: () => setState(() => showContactMenu = !showContactMenu),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 56, height: 56,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: showContactMenu ? [kDanger, const Color(0xFFc0392b)] : [kAccent, const Color(0xFFd4890e)],
+                  begin: Alignment.topLeft, end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [BoxShadow(color: (showContactMenu ? kDanger : kAccent).withOpacity(0.5), blurRadius: 16, offset: const Offset(0, 6))],
+              ),
+              child: Center(child: Text(showContactMenu ? '✕' : '📲', style: const TextStyle(fontSize: 22))),
+            ),
+          ),
+        ),
+
         if (toastMsg.isNotEmpty)
-          Positioned(bottom: 24, right: 24,
+          Positioned(bottom: 90, left: 20,
             child: Container(
+              constraints: const BoxConstraints(maxWidth: 260),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               decoration: BoxDecoration(color: kPrimary, borderRadius: BorderRadius.circular(12), boxShadow: [const BoxShadow(color: Colors.black26, blurRadius: 16)]),
               child: Text(toastMsg, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)))),
@@ -373,6 +425,36 @@ class _AppPageState extends State<AppPage> {
       ),
     );
   }
+}
+
+// ===== CONTACT ITEM =====
+class _ContactItem extends StatelessWidget {
+  final String icon, label, sublabel;
+  final Color color;
+  final VoidCallback onTap;
+  const _ContactItem({required this.icon, required this.label, required this.sublabel, required this.color, required this.onTap});
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 12, offset: const Offset(0, 4))]),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kText)),
+          Text(sublabel, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+        ]),
+      ),
+      const SizedBox(width: 10),
+      Container(
+        width: 44, height: 44,
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(22),
+          boxShadow: [BoxShadow(color: color.withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 4))]),
+        child: Center(child: Text(icon, style: const TextStyle(fontSize: 20))),
+      ),
+    ]),
+  );
 }
 
 // ===== SIDEBAR =====
@@ -473,6 +555,74 @@ class _Topbar extends StatelessWidget {
   }
 }
 
+// ===== JAM & TANGGAL WIDGET =====
+class _ClockWidget extends StatefulWidget {
+  const _ClockWidget();
+  @override
+  State<_ClockWidget> createState() => _ClockWidgetState();
+}
+
+class _ClockWidgetState extends State<_ClockWidget> {
+  late DateTime _now;
+  late Timer _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _now = DateTime.now();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
+  }
+
+  @override
+  void dispose() { _timer.cancel(); super.dispose(); }
+
+  String get _jam {
+    final h = _now.hour.toString().padLeft(2, '0');
+    final m = _now.minute.toString().padLeft(2, '0');
+    final s = _now.second.toString().padLeft(2, '0');
+    return '$h:$m:$s';
+  }
+
+  String get _tanggal {
+    const hari = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+    const bulan = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    return '${hari[_now.weekday % 7]}, ${_now.day} ${bulan[_now.month]} ${_now.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [kPrimary, kPrimaryLight], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: kPrimary.withOpacity(0.35), blurRadius: 18, offset: const Offset(0, 8))],
+      ),
+      child: Row(children: [
+        const Text('🕐', style: TextStyle(fontSize: 32)),
+        const SizedBox(width: 16),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(_jam, style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: 2)),
+          const SizedBox(height: 2),
+          Text(_tanggal, style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)),
+        ]),
+        const Spacer(),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+          child: const Column(children: [
+            Text('🏛️', style: TextStyle(fontSize: 18)),
+            Text('SiLapor', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
 // ===== ADMIN DASHBOARD =====
 class AdminDashboardPage extends StatelessWidget {
   final List<Laporan> laporanData;
@@ -486,9 +636,17 @@ class AdminDashboardPage extends StatelessWidget {
     final darurat = laporanData.where((l) => l.status == 'Darurat').length;
     final totalUser = AppDB.users.where((u) => u.role == 'user').length;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Selamat datang, $username 👑', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-      const Text('Panel Admin — Ringkasan laporan kecamatan.', style: TextStyle(fontSize: 13, color: kTextMuted)),
-      const SizedBox(height: 24),
+      // JAM & TANGGAL
+      const _ClockWidget(),
+      const SizedBox(height: 20),
+      // SAMBUTAN
+      Row(children: [
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Selamat datang, $username 👑', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const Text('Panel Admin — Ringkasan laporan kecamatan.', style: TextStyle(fontSize: 13, color: kTextMuted)),
+        ])),
+      ]),
+      const SizedBox(height: 16),
       GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 2.2, children: [
         _StatCard(icon: '📋', iconBg: const Color(0xFFe8f0fe), value: '$total', label: 'Total Laporan'),
         _StatCard(icon: '⏳', iconBg: const Color(0xFFfef9e7), value: '$menunggu', label: 'Menunggu'),
@@ -523,9 +681,12 @@ class UserDashboardPage extends StatelessWidget {
     final diproses = my.where((l) => l.status == 'Diproses').length;
     final menunggu = my.where((l) => l.status == 'Menunggu').length;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Halo, $username 👋', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+      // JAM & TANGGAL
+      const _ClockWidget(),
+      const SizedBox(height: 20),
+      Text('Halo, $username 👋', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
       const Text('Pantau status laporan yang kamu kirimkan.', style: TextStyle(fontSize: 13, color: kTextMuted)),
-      const SizedBox(height: 24),
+      const SizedBox(height: 16),
       GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 2.2, children: [
         _StatCard(icon: '📋', iconBg: const Color(0xFFe8f0fe), value: '${my.length}', label: 'Laporan Saya'),
         _StatCard(icon: '⏳', iconBg: const Color(0xFFfef9e7), value: '$menunggu', label: 'Menunggu'),
