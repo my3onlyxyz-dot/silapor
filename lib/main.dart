@@ -692,6 +692,82 @@ class AdminDashboardPage extends StatelessWidget {
   final String username;
   const AdminDashboardPage({super.key, required this.laporanData, required this.username});
 
+  void _showUserDetail(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1e2d3d) : Colors.white;
+    final itemBg = isDark ? const Color(0xFF243044) : kBg;
+    final users = AppDB.users.where((u) => u.role == 'user').toList();
+    const color = Color(0xFF7c3aed);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.55, minChildSize: 0.3, maxChildSize: 0.9,
+        builder: (_, ctrl) => Container(
+          decoration: BoxDecoration(color: cardBg, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+          child: Column(children: [
+            const SizedBox(height: 10),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Row(children: [
+                Container(width: 44, height: 44,
+                  decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                  child: const Center(child: Text('👥', style: TextStyle(fontSize: 20)))),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('Daftar Pengguna', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                  Text('${users.length} pengguna terdaftar', style: const TextStyle(fontSize: 12, color: kTextMuted)),
+                ])),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
+                  child: Text('${users.length}', style: const TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 15))),
+              ]),
+            ),
+            const Divider(height: 1),
+            Expanded(child: users.isEmpty
+              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Text('👤', style: TextStyle(fontSize: 40)),
+                  const SizedBox(height: 12),
+                  const Text('Belum ada pengguna terdaftar', style: TextStyle(color: kTextMuted, fontSize: 13)),
+                ]))
+              : ListView.separated(
+                  controller: ctrl,
+                  padding: const EdgeInsets.all(16),
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemCount: users.length,
+                  itemBuilder: (_, i) {
+                    final u = users[i];
+                    final initial = u.nama.isNotEmpty ? u.nama[0].toUpperCase() : 'U';
+                    return Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(color: itemBg, borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: color.withOpacity(0.15))),
+                      child: Row(children: [
+                        Container(width: 40, height: 40,
+                          decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+                          child: Center(child: Text(initial, style: const TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 16)))),
+                        const SizedBox(width: 12),
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(u.nama, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                          Text('@${u.username} · ${u.noHp.isEmpty ? "No HP -" : u.noHp}',
+                            style: const TextStyle(fontSize: 11, color: kTextMuted)),
+                        ])),
+                        Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(color: kSuccess.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                          child: const Text('Aktif', style: TextStyle(color: kSuccess, fontSize: 10, fontWeight: FontWeight.w700))),
+                      ]),
+                    );
+                  }),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
   void _showStatDetail(BuildContext context, String label, String icon, Color color, List<Laporan> filtered) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = isDark ? const Color(0xFF1e2d3d) : Colors.white;
@@ -853,7 +929,7 @@ class AdminDashboardPage extends StatelessWidget {
         Expanded(child: _TappableStatCard(
           icon: '👥', iconBg: const Color(0xFFf3e8ff), iconColor: const Color(0xFF7c3aed),
           value: '$totalUser', label: 'Pengguna', sublabel: 'Terdaftar',
-          onTap: () {},
+          onTap: () => _showUserDetail(context),
         )),
       ]),
       const SizedBox(height: 20),
