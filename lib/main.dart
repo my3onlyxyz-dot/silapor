@@ -920,7 +920,7 @@ class AdminDashboardPage extends StatelessWidget {
         Expanded(child: _TappableStatCard(
           icon: '📋', iconBg: const Color(0xFFe8f0fe), iconColor: kInfo,
           value: '$total', label: 'Total Laporan', sublabel: 'Semua laporan',
-          onTap: () => _showStatDetail(context, 'Total Laporan', '📋', kInfo, laporanData),
+          onTap: () => _showStatDetail(context, 'Total Laporan', '📋', kInfo, AppDB.laporan),
         )),
         const SizedBox(width: 10),
         Expanded(child: _TappableStatCard(
